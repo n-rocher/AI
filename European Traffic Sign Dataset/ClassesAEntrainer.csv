@@ -1,0 +1,14 @@
+Name,Class
+Ralentisseur,11
+Croisement,23
+Intersection prioritaire,24
+Rondpoint,25
+Ceder le passage,35
+Stop,36
+Route prioritaire,37
+Fin de route prioritaire,38
+Sens interdit,41
+Vitesse 30,59
+Vitesse 50,61
+Vitesse 70,63
+Vitesse 80,64
