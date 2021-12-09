@@ -181,28 +181,6 @@ def bilateral_guided_aggregation(detail, semantic, c):
 
     return x
 
-
-def upproject(tensor, filters):
-    up_i = BilinearUpSampling2D((2, 2))(tensor)
-    up_i = layers.Conv2D(filters=filters, kernel_size=3, strides=1, padding='same')(up_i)
-    up_i = layers.LeakyReLU(alpha=0.2)(up_i)
-    # up_i = layers.Conv2D(filters=filters, kernel_size=3, strides=1, padding='same')(up_i)
-    # up_i = layers.LeakyReLU(alpha=0.2)(up_i)
-    return up_i
-
-def depth_head(x_in, decode_filters):
-
-    decoder = layers.Conv2D(filters=decode_filters, kernel_size=1, padding='same')(x_in)
-    decoder = upproject(decoder, int(decode_filters/2))
-    decoder = upproject(decoder, int(decode_filters/4))
-    decoder = upproject(decoder, int(decode_filters/8))
-    decoder = upproject(decoder, int(decode_filters/16))
-
-    conv3 = layers.Conv2D(filters=1, kernel_size=3, strides=1, padding='same')(decoder)
-
-    return conv3
-
-
 def seg_head(x_in, c_t, out_scale, num_classes):
     x = layers.Conv2D(filters=c_t, kernel_size=(3, 3), padding='same')(x_in)
     x = layers.BatchNormalization()(x)
@@ -273,8 +251,7 @@ def bisenetv2(num_classes=2, out_scale=8, input_shape=INPUT_SHAPE, l=4, seghead_
 
     return model
 
-
-def bisenetv2_DEPTH(input_shape=INPUT_SHAPE, l=4):
+def bisenetv2_DEEPER(num_classes=2, out_scale=8, input_shape=INPUT_SHAPE, l=4, seghead_expand_ratio=2):
     x_in = layers.Input(input_shape)
 
     # semantic branch
@@ -284,6 +261,11 @@ def bisenetv2_DEPTH(input_shape=INPUT_SHAPE, l=4):
     # S3
     x = ge_layer(x, 128 // l, stride=2)
     x = ge_layer(x, 128 // l, stride=1)
+    
+
+    # S3 ++ 
+    x = ge_layer(x, 256 // l, stride=2)
+    x = ge_layer(x, 256 // l, stride=1)
 
     # S4
     x = ge_layer(x, 64, stride=2)
@@ -313,11 +295,16 @@ def bisenetv2_DEPTH(input_shape=INPUT_SHAPE, l=4):
     y = detail_conv2d(y, 128, stride=1)
     y = detail_conv2d(y, 128, stride=1)
 
-    x = bilateral_guided_aggregation(y, x, 128)
+    # S3 ++
+    y = detail_conv2d(y, 256, stride=2)
+    y = detail_conv2d(y, 256, stride=1)
+    y = detail_conv2d(y, 256, stride=1)
 
-    x = depth_head(x, 128)
+    x = bilateral_guided_aggregation(y, x, 256) # AVANT 128 
 
-    model = models.Model(inputs=[x_in], outputs=[x], name="BiSeNet-V2-DEPTH")
+    x = seg_head(x, num_classes * seghead_expand_ratio, out_scale, num_classes)
+
+    model = models.Model(inputs=[x_in], outputs=[x], name="BiSeNet-V2")
 
     # set weight initializers
     for layer in model.layers:

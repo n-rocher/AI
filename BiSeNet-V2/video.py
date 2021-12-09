@@ -36,7 +36,7 @@ CATEGORIES = {
 }
 
 IMG_SIZE = (720, 480)
-VIDEO_PATH = r"F:\Road Video"
+VIDEO_PATH = r"C:\Users\thena\Videos\Filmé avec téléphone"
 MODEL_PATH = r"J:\PROJET\IA\BiSeNet-V2\models\20211203-105503\BiSeNet-V2_MultiDataset_480-704_epoch-12_loss-0.14_miou_0.47.h5"
 
 class Thread(QThread):
@@ -83,8 +83,8 @@ class Thread(QThread):
 
                 # Argmax
                 result = argmax(result, axis=-1)
-                kernel = np.ones((3, 3), np.uint8)
-                result = cv2.erode(np.array(result, dtype=np.uint8), kernel, iterations=3)
+                # kernel = np.ones((3, 3), np.uint8)
+                # result = cv2.erode(np.array(result, dtype=np.uint8), kernel, iterations=3)
                 segmentation = np.zeros(result.shape + (3,), dtype=np.uint8)
                 for categorie in CATEGORIES.keys():
                     segmentation[result == categorie] = CATEGORIES[categorie]["color"]

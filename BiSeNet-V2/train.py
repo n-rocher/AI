@@ -4,12 +4,12 @@ from wandb.keras import WandbCallback
 
 from dataset import MultiDataset
 
-from model import bisenetv2, bisenetv2_compiled
+from model import bisenetv2, bisenetv2_DEEPER, bisenetv2_compiled
 
 from datetime import datetime
 from sanitycheck import SanityCheck
 
-IMG_SIZE = (480, 704)
+IMG_SIZE = (512, 512)
 BATCH_SIZE = 4
 EPOCHS = 50
 
@@ -23,6 +23,7 @@ if __name__ == '__main__':
     print("  len(train_gen) :", len(train_gen), "batchs -", len(train_gen) * BATCH_SIZE, "images")
     print("  len(val_gen) :", len(val_gen), "batchs -", len(val_gen) * BATCH_SIZE, "images")
 
+
     # Création du modele
     print("\n> Création du modèle")
     keras.backend.clear_session()
@@ -35,9 +36,9 @@ if __name__ == '__main__':
 
     model.summary()
 
-    now_str = datetime.now().strftime("%Y%m%d-%H%M%S")
 
     # Weights & Biases
+    now_str = datetime.now().strftime("%Y%m%d-%H%M%S")
     run = wandb.init(project="BiSeNet-V2", entity="nrocher", config={
         "learning_rate": 1e-4,
         "epochs": EPOCHS,
