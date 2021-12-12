@@ -39,6 +39,8 @@ IMG_SIZE = (720, 480)
 VIDEO_PATH = r"F:\Road Video"
 MODEL_PATH = r"J:\PROJET\IA\BiSeNet-V2\models\20211203-105503\BiSeNet-V2_MultiDataset_480-704_epoch-12_loss-0.14_miou_0.47.h5"
 
+BOUNDING_BOX_PADDING = 10
+
 class Thread(QThread):
     EVT_ROAD_IMAGE = Signal(QImage)
     EVT_SEGMENTATION_IMAGE = Signal(QImage)
@@ -87,6 +89,19 @@ class Thread(QThread):
                 # result = cv2.erode(np.array(result, dtype=np.uint8), kernel, iterations=3)
                 segmentation = np.zeros(result.shape + (3,), dtype=np.uint8)
                 for categorie in CATEGORIES.keys():
+                    
+                    # En cas de détection de "Traffic Sign", on dessine une box autour
+                    if categorie == 7:
+                        contours, _ = cv2.findContours(np.array(result == categorie, dtype=np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+                        for cnt in contours:
+                            x, y, w, h = cv2.boundingRect(cnt)
+                            if w * h > 200 : 
+                                x = x - BOUNDING_BOX_PADDING
+                                y = y - BOUNDING_BOX_PADDING
+                                w = w + BOUNDING_BOX_PADDING * 2
+                                h = h + BOUNDING_BOX_PADDING * 2
+                                cv2.rectangle(segmentation, (x, y), (x + w, y + h), (0, 255, 0), 2)
+
                     segmentation[result == categorie] = CATEGORIES[categorie]["color"]
 
                 self.sendTo(self.EVT_ROAD_IMAGE, cv2.cvtColor(img_resized, cv2.COLOR_RGB2BGR))
@@ -168,7 +183,7 @@ class Window(QMainWindow):
         label_scroll = QScrollArea()
         label_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
         label_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-       
+
         grid = QGridLayout()
 
         for id_label in CATEGORIES:
@@ -178,12 +193,12 @@ class Window(QMainWindow):
             color = "rgb(" + str(label["color"][0]) + "," + str(label["color"][1]) + "," + str(label["color"][2]) + ")"
 
             testWidget = QFrame()
-            testWidget.setFixedSize(50,25)
+            testWidget.setFixedSize(50, 25)
             testWidget.setObjectName("myWidget")
-            testWidget.setStyleSheet("#myWidget {background-color:"+color+";}") 
+            testWidget.setStyleSheet("#myWidget {background-color:" + color + ";}")
 
-            grid.addWidget(testWidget, id_label,0)
-            grid.addWidget(QLabel(label["name"]), id_label,1)
+            grid.addWidget(testWidget, id_label, 0)
+            grid.addWidget(QLabel(label["name"]), id_label, 1)
 
         label_widget = QWidget()
         label_widget.setLayout(grid)
