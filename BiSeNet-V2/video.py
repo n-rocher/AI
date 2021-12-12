@@ -36,7 +36,7 @@ CATEGORIES = {
 }
 
 IMG_SIZE = (720, 480)
-VIDEO_PATH = r"C:\Users\thena\Videos\Filmé avec téléphone"
+VIDEO_PATH = r"F:\Road Video"
 MODEL_PATH = r"J:\PROJET\IA\BiSeNet-V2\models\20211203-105503\BiSeNet-V2_MultiDataset_480-704_epoch-12_loss-0.14_miou_0.47.h5"
 
 class Thread(QThread):

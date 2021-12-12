@@ -1,6 +1,9 @@
 models/
 pretrained/
 
+wandb/
+
+*.npy
 *.h5
 
 

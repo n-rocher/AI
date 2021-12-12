@@ -278,6 +278,8 @@ def bisenetv2_DEEPER(num_classes=2, out_scale=8, input_shape=INPUT_SHAPE, l=4, s
     x = ge_layer(x, 128, stride=1)
     x = ge_layer(x, 128, stride=1)
 
+    print(x.shape)
+
     x = context_embedding(x, 128)
 
     # detail branch

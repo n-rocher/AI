@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 
 CSV_CLASS = "ClassesAEntrainer.csv"
 
-ANALYSING_FOLDER = "PNG-RESIZED-Training"
+ANALYSING_FOLDER = r"F:\European Traffic Sign Dataset\PNG-Training"
 
 #####################################################
 
@@ -27,9 +27,9 @@ for index, row in classes.iterrows():
     except:
         pass
 
-print(classes)
 
 classes = classes.sort_values("Values", ascending=False)
+print(classes)
 
 classes.plot.bar(x='Title', y='Values', rot=90)
 plt.show()

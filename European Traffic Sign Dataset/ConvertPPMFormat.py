@@ -8,16 +8,17 @@ from multiprocessing.pool import ThreadPool as Pool
 
 pool_size = 10
 
-FOLDER = ["Classes2"]
+FOLDER = [r"F:\European Traffic Sign Dataset\\"]
+NEW_FODLER = r"F:\European Traffic Sign Dataset\PNG-CLASSES\\"
 
 def copy_file_into_class(folder, new_folder, class_path):
-       
-    new_class_path = new_folder + "/" + class_path
+
+    new_class_path = new_folder + class_path
     
     try:
         os.makedirs(new_class_path)
     except:
-        pass
+        print("Erreur lors de la création de :", new_class_path)
     
     files = os.listdir(folder + "/" + class_path)
 
@@ -47,21 +48,23 @@ def copy_file_into_class(folder, new_folder, class_path):
 
 
 
-pool = Pool(pool_size)
+if __name__ == "__main__":
 
-for folder in FOLDER:
+    pool = Pool(pool_size)
 
-    classes_path = os.listdir(folder)
+    for folder in FOLDER:
 
-    new_folder = "PNG-RESIZED-" + folder
+        classes_path = os.listdir(folder)
 
-    try:
-        os.makedirs(new_folder)
-    except:
-        pass
+        print(classes_path)
 
-    for class_path in classes_path:
-        pool.apply_async(copy_file_into_class, (folder, new_folder, class_path,))
+        try:
+            os.makedirs(NEW_FODLER)
+        except:
+            pass
 
-pool.close()
-pool.join()
+        for class_path in classes_path:
+            pool.apply_async(copy_file_into_class, (folder, NEW_FODLER, class_path,))
+
+    pool.close()
+    pool.join()

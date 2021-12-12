@@ -5,6 +5,7 @@ from wandb.keras import WandbCallback
 from dataset import MultiDataset
 
 from model import bisenetv2, bisenetv2_DEEPER, bisenetv2_compiled
+from aunet import Attention_ResUNet
 
 from datetime import datetime
 from sanitycheck import SanityCheck
@@ -29,7 +30,7 @@ if __name__ == '__main__':
     keras.backend.clear_session()
 
     # Initialisation du modèle
-    model = bisenetv2_compiled(bisenetv2, num_classes=train_gen.classes(), input_shape=IMG_SIZE + (3,))
+    model = bisenetv2_compiled(Attention_ResUNet, num_classes=train_gen.classes(), input_shape=IMG_SIZE + (3,))
 
     # from model import ArgmaxMeanIOU
     # model = keras.models.load_model(r"J:\PROJET\IA\BiSeNet-V2\models\20211201-093723\BiSeNet-V2_MultiDataset_480-704_epoch-06_loss-0.13_miou_0.46.h5", custom_objects={'ArgmaxMeanIOU': ArgmaxMeanIOU})
@@ -44,7 +45,8 @@ if __name__ == '__main__':
         "epochs": EPOCHS,
         "batch_size": BATCH_SIZE,
         "image_size": IMG_SIZE,
-        "dataset": train_gen.name()
+        "dataset": train_gen.name(),
+        "model": model.name
     })
 
     callbacks = [

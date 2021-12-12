@@ -3,10 +3,14 @@ import cv2
 import numpy as np
 import pandas as pd
 from datetime import datetime
+
+import wandb
+from tensorflow import keras
+from wandb.keras import WandbCallback
+
 from tensorflow.keras.layers import Dense
 from tensorflow.keras.layers import Conv2D
 from tensorflow.keras.layers import Flatten
-from tensorflow.keras.layers import Dropout
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import MaxPooling2D
@@ -20,19 +24,18 @@ from tensorflow.keras.preprocessing.image import ImageDataGenerator
 EPOCHS = 20
 LEARNING_RATE = 0.001
 BATCH_SIZE = 64
+IMG_SIZE = (75, 75)
 
-CSV_CLASS = "ClassesAEntrainer.csv"
+CSV_CLASS = "data/ClassesAEntrainer.csv"
 
-TRAINING_FOLDER = "PNG-RESIZED-Training"
-TESTING_FOLDER = "PNG-RESIZED-Testing"
-MODEL_FOLDER = "Models"
+FOLDER = r"F:\European Traffic Sign Dataset\PNG-"
 
 #######################################################
 #                        MODEL                        #
 #######################################################
-def TrafficSignClassifier(width, height, depth, classes):
-    model = Sequential()
-    inputShape = (height, width, depth)
+def TrafficSignClassifier(img_size, classes):
+    model = Sequential(name="TrafficSignClassifier")
+    inputShape = img_size + (3,)
 
     model.add(Conv2D(8, (5, 5), input_shape=inputShape, activation="relu"))
     model.add(MaxPooling2D(pool_size=(2, 2)))
@@ -49,14 +52,13 @@ def TrafficSignClassifier(width, height, depth, classes):
     model.add(BatchNormalization())
     model.add(MaxPooling2D(pool_size=(2, 2)))
 
-    model.add(Conv2D(75, (3, 3), padding="same", activation="relu"))
-    model.add(BatchNormalization())
-    model.add(Conv2D(75, (3, 3), padding="same", activation="relu"))
-    model.add(BatchNormalization())
+    # model.add(Conv2D(75, (3, 3), padding="same", activation="relu"))
+    # model.add(BatchNormalization())
+    # model.add(Conv2D(75, (3, 3), padding="same", activation="relu"))
+    # model.add(BatchNormalization())
 
     model.add(Flatten())
-    model.add(Dropout(0.5))
-    model.add(Dense(512, activation="relu"))
+    model.add(Dense(256, activation="relu"))
     model.add(Dense(classes, activation="softmax"))
 
     return model
@@ -69,16 +71,16 @@ def load_data(folder, class_ids):
     data_image = []
     data_label = []
 
-    print("[INFO] " + str(len(class_ids)) +" classes à charger dans le dossier " + folder)
+    print("[INFO] " + str(len(class_ids)) +" classes à charger dans le dossier " + FOLDER + folder)
 
     for index, class_id in enumerate(class_ids):
 
         # On créé le path du dossier de la classe
-        class_path = folder + "/" + str(class_id).zfill(3)
+        class_path = FOLDER + folder + "/" + str(class_id).zfill(3)
 
         try:
             # On récupère toutes les images
-            images = os.listdir(class_path)
+            images = os.listdir(class_path)[:250]
 
             compteur_image_ajoutee = 0
 
@@ -89,14 +91,14 @@ def load_data(folder, class_ids):
 
                 try:
                     # On charge l'image
-                    image = cv2.imread(image_path)
+                    image = cv2.imread(image_path) / 255.
 
                     # Adaptive histogram equalization
-                    R, G, B = cv2.split(image)
-                    img_r = cv2.equalizeHist(R)
-                    img_g = cv2.equalizeHist(G)
-                    img_b = cv2.equalizeHist(B)
-                    image = cv2.merge((img_r, img_g, img_b))
+                    # R, G, B = cv2.split(image)
+                    # img_r = cv2.equalizeHist(R)
+                    # img_g = cv2.equalizeHist(G)
+                    # img_b = cv2.equalizeHist(B)
+                    # image = cv2.merge((img_r, img_g, img_b))
 
                     # On ajoute dans la mémoire
                     data_image.append(image)
@@ -118,32 +120,44 @@ def load_data(folder, class_ids):
             print(err)
             print("[ERROR] Impossible d'ouvrir le dossier suivant : " + class_path)
 
-    return (np.array(data_image), np.array(data_label))
+
+    data_image = np.array(data_image)
+    data_label = np.array(data_label)
+
+    np.save("data/" + folder + "_data_image", data_image)
+    np.save("data/" + folder + "_data_label", data_label)
+
+    return (data_image, data_label)
 
 #######################################################
 #                      PROGRAM                        #
 #######################################################
 
-try:
+if __name__ == '__main__':
+
+    # Weights & Biases
+    now_str = datetime.now().strftime("%Y%m%d-%H%M%S")
+    run = wandb.init(project="Traffic Sign recognition", entity="nrocher", config={
+        "learning_rate": LEARNING_RATE,
+        "epochs": EPOCHS,
+        "batch_size": BATCH_SIZE,
+        "image_size": IMG_SIZE,
+        "dataset": "European Traffic Sign Dataset",
+        "model": "TrafficSignClassifier"
+    })
+
     # On charge le fichier des classes à utiliser
     class_file = pd.read_csv(CSV_CLASS)
     class_ids = class_file['Class'].tolist()
-    print("\n[INFO] Liste des classe chargée")
 
-    (trainX, trainY) = load_data(TRAINING_FOLDER, class_ids)
-    print("\n[INFO] Donnée d'entrainement chargée")
+    (trainX, trainY) = load_data("Training", class_ids)
+    (testX, testY) = load_data("Testing", class_ids)
 
-    (testX, testY) = load_data(TESTING_FOLDER, class_ids)
-    print("\n[INFO] Donnée de test chargée")
-
-    print("\n[INFO] Normalizing data -> skipped")
-    # trainX = trainX.astype("float32") / 255.0
-    # testX = testX.astype("float32") / 255.0
-
-    print("\n[INFO] One-Hot Encoding data")
+    # One-Hot Encoding data
     trainY = to_categorical(trainY)
     testY = to_categorical(testY)
 
+    # Image Augmentation
     data_aug = ImageDataGenerator(
         rotation_range=10,
         zoom_range=0.15,
@@ -153,23 +167,27 @@ try:
         horizontal_flip=False,
         vertical_flip=False)
 
-    model = TrafficSignClassifier(width=75, height=75, depth=3, classes=len(class_ids))
-    optimizer = Adam(learning_rate=LEARNING_RATE, decay=LEARNING_RATE / (EPOCHS))
+    
+    # Création du modèle
+    model = TrafficSignClassifier(IMG_SIZE, classes=len(class_ids))
+    optimizer = Adam(learning_rate=LEARNING_RATE, decay=LEARNING_RATE / EPOCHS)
 
     model.compile(optimizer=optimizer, loss="categorical_crossentropy", metrics=["accuracy"])
+    model.summary()
 
-    fit = model.fit_generator(
+    callbacks = [
+        keras.callbacks.ModelCheckpoint("models/" + now_str + "/" + model.name + "_" + str(IMG_SIZE[0]) + "-" + str(IMG_SIZE[1]) + "_epoch-{epoch:02d}_loss-{val_loss:.2f}_acc_{val_accuracy:.2f}.h5"),
+        keras.callbacks.TensorBoard(log_dir="models/" + now_str + "/logs/", histogram_freq=1),
+        WandbCallback()
+    ]
+
+    fit = model.fit(
         data_aug.flow(trainX, trainY, batch_size=BATCH_SIZE),
         epochs=EPOCHS,
         validation_data=(testX, testY),
-        verbose=1)
+        # use_multiprocessing=True,
+        # workers=6,
+        callbacks=callbacks)
 
-    model_name = datetime.now().strftime("%d-%m-%Y-%H-%M-%S")
-
-    model.save(MODEL_FOLDER + "/" + model_name)
-
-    print("[INFO] Modele sauvegardé : " + model_name)
-
-except KeyboardInterrupt:
-    print("[SHUTING DOWN] Fin du programme...")
-    exit()
+    # Weights & Biases - END
+    run.finish()

@@ -304,11 +304,11 @@ class MultiDataset(keras.utils.Sequence):
         return "MultiDataset"
 
     def getVistasData(self, dataset_type):
-        data_image, data_label = getImagesAndMasksPath("F:\\Vistas\\" + dataset_type + "\\images\\", "F:\\Vistas\\" + dataset_type + "\\v1.2\labels\\")
+        data_image, data_label = getImagesAndMasksPath("F:\\Mapillary Vistas\\" + dataset_type + "\\images\\", "F:\\Mapillary Vistas\\" + dataset_type + "\\v1.2\labels\\")
         return list(zip(["VISTAS"] * len(data_image), data_image, data_label))
 
     def getA2D2Data(self, dataset_type):
-        dataset_folder = r"F:\\A2D2 Camera Semantic\\"
+        dataset_folder = r"F:\\A2D2 Camera Semantic\\" + dataset_type + "\\"
 
         data_image = []
         data_label = []
@@ -471,7 +471,7 @@ class SequenceDataset(keras.utils.Sequence):
 if __name__ == "__main__":
 
     print("\n> Génération du dataset")
-    train_gen = SequenceDataset(5, 5, (480, 720), "F:\\BDD100K\\images\\SEQ-5-5\\val\\", "F:\\BDD100K\\labels\\drivable\\colormaps\\val\\")
+    train_gen = MultiDataset(5, (480, 720), "train")
 
     import matplotlib.pyplot as plt
 
@@ -481,7 +481,7 @@ if __name__ == "__main__":
         for img_i, mask_i in zip(data[0], data[1]):
             fig, axs = plt.subplots(2, 1)
 
-            axs[0].imshow(img_i[-1].astype(np.uint8))
+            axs[0].imshow((img_i*255).astype(np.uint8))
             axs[1].imshow(mask_i)
             fig.show()
             figManager = plt.get_current_fig_manager()
