@@ -35,24 +35,93 @@ CATEGORIES = {
     15: {"name": "Truck", "color": [0, 0, 70]}
 }
 
+TRAFFIC_SIGN_DATASET = {
+    1: "Virage à droite", 
+    100: "Sens unique (droit)", 
+    107: "Zone 30", 
+    108: "Fin zone 30", 
+    109: "Passage pour piétons",
+    11: "Ralentisseur simple",
+    12: "Ralentisseur double",
+    125: "Ralentisseur",
+    13: "Route glissante",
+    140: "Direction",
+    15: "Chute de pierres",
+    16: "Passage pour piétons",
+    17: "Enfants (école)",
+    2: "Virage à gauche",
+    23: "Intersection",
+    24: "Intersection avec une route",
+    25: "Rond-point",
+    3: "Double virage (gauche)",
+    32: "Autres dangers",
+    35: "Céder le passage",
+    36: "Stop",
+    37: "Route prioritaire",
+    38: "Fin route prioritaire",
+    39: "Priorité au trafic en sens inverse",
+    4: "Double virage (droite)",
+    40: "Priorité au trafic en sens inverse",
+    41: "Sens interdit",
+    51: "Virage à gauche interdit",
+    52: "Virage à droite interdit",
+    53: "Demi-tour interdit",
+    54: "Dépassement interdit",
+    55: "Dépassement interdit aux véhicules de transport de marchandises",
+    57: "Vitesse maximale 20",
+    59: "Vitesse maximale 30",
+    60: "Vitesse maximale 40",
+    61: "Vitesse maximale 50",
+    62: "Vitesse maximale 60",
+    63: "Vitesse maximale 70",
+    64: "Vitesse maximale 80",
+    65: "Vitesse maximale 90",
+    66: "Vitesse maximale 100",
+    67: "Vitesse maximale 110",
+    68: "Vitesse maximale 120",
+    7: "Rétrécissement de la chaussée",
+    80: "Direction - Droit",
+    81: "Direction - Droite",
+    82: "Direction - Gauche",
+    83: "Direction - Droite ou Droite",
+    84: "Direction - Tout droit ou à gauche",
+    85: "Direction - Tourner à droite",
+    86: "Direction - Tourner à gauche",
+    87: "Passer à droite",
+    88: "Passer à gauche"}
+
+TRAFFIC_SIGN_DATASET_VALUES = list(TRAFFIC_SIGN_DATASET.values())
+TRAFFIC_SIGN_DATASET_KEYS = list(TRAFFIC_SIGN_DATASET.keys())
+
 IMG_SIZE = (720, 480)
 VIDEO_PATH = r"F:\Road Video"
-MODEL_PATH = r"J:\PROJET\IA\BiSeNet-V2\models\20211203-105503\BiSeNet-V2_MultiDataset_480-704_epoch-12_loss-0.14_miou_0.47.h5"
 
-BOUNDING_BOX_PADDING = 10
+BOUNDING_BOX_PADDING = 5
 
 class Thread(QThread):
     EVT_ROAD_IMAGE = Signal(QImage)
     EVT_SEGMENTATION_IMAGE = Signal(QImage)
 
+    segmentation_model = None
+    segmentation_model_size = None
+
+    traffic_sign_recognition_model = None
+    traffic_sign_recognition_model_size = None
+
     def __init__(self, parent=None):
         QThread.__init__(self, parent)
         self.video_file = None
         self.status = True
-        self.cap = True
+        self.cap = None
+        self.isAvailable = True
 
-    def set_file(self, fname):
+    def start_file(self, fname):
         self.video_file = os.path.join(VIDEO_PATH, fname)
+
+        while self.isAvailable == False:
+            pass
+
+        self.start()
 
     def sendTo(self, evt, frame):
         # Creating and scaling QImage
@@ -63,56 +132,109 @@ class Thread(QThread):
         # Emit signal
         evt.emit(scaled_img)
 
+    def loadSegmentationModel(self, filename):
+        self.segmentation_model = None
+        self.segmentation_model_size = None
+
+        try:
+            self.segmentation_model = keras.models.load_model(filename, custom_objects={'ArgmaxMeanIOU': ArgmaxMeanIOU})
+            self.segmentation_model_size = self.segmentation_model.get_layer(index=0).input_shape[0][1:-1][::-1]
+        except:
+            print("[loadSegmentationModel] Une erreur est survenue lors de l'ouverture du h5")
+
+    def loadTrafficSignRecognitionModel(self, filename):
+
+        self.traffic_sign_recognition_model = None
+        self.traffic_sign_recognition_model_size = None
+
+        try:
+            self.traffic_sign_recognition_model = keras.models.load_model(filename)
+            self.traffic_sign_recognition_model_size = self.traffic_sign_recognition_model.get_layer(index=0).input_shape[0][1:-1][::-1]
+        except Exception as e:
+            print("[loadTrafficSignRecognitionModel] Une erreur est survenue lors de l'ouverture du h5")
+            print(e)
+
     def run(self):
 
-        global model
-        global MODEL_SIZE
         global CATEGORIES
 
         if self.video_file is not None:
 
+            self.ThreadActive = True
+
+            if self.cap is not None:
+                self.cap.release()
+
             self.cap = cv2.VideoCapture(self.video_file)
 
-            while(self.cap.isOpened() and self.status):
+            while(self.ThreadActive and self.cap.isOpened()):
+                self.isAvailable = False
+
 
                 ret, frame = self.cap.read()
                 if not ret:
                     continue
 
-                img_resized = cv2.resize(frame, MODEL_SIZE, interpolation=cv2.INTER_AREA)
+                img_resized = cv2.resize(frame, self.segmentation_model_size, interpolation=cv2.INTER_AREA)
 
-                result = model.predict(np.expand_dims(img_resized / 255., axis=0))[0]
+                result_segmentation = self.segmentation_model.predict(np.expand_dims(img_resized / 255., axis=0))[0]
 
                 # Argmax
-                result = argmax(result, axis=-1)
+                result_segmentation = argmax(result_segmentation, axis=-1)
                 # kernel = np.ones((3, 3), np.uint8)
                 # result = cv2.erode(np.array(result, dtype=np.uint8), kernel, iterations=3)
-                segmentation = np.zeros(result.shape + (3,), dtype=np.uint8)
+                segmentation = np.zeros(result_segmentation.shape + (3,), dtype=np.uint8)
                 for categorie in CATEGORIES.keys():
-                    
+
                     # En cas de détection de "Traffic Sign", on dessine une box autour
                     if categorie == 7:
-                        contours, _ = cv2.findContours(np.array(result == categorie, dtype=np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+                        print("\n")
+                        contours, _ = cv2.findContours(np.array(result_segmentation == categorie, dtype=np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
                         for cnt in contours:
                             x, y, w, h = cv2.boundingRect(cnt)
-                            if w * h > 200 : 
+                            if w > 10 and h > 10 and w * h > 200:
                                 x = x - BOUNDING_BOX_PADDING
                                 y = y - BOUNDING_BOX_PADDING
                                 w = w + BOUNDING_BOX_PADDING * 2
                                 h = h + BOUNDING_BOX_PADDING * 2
-                                cv2.rectangle(segmentation, (x, y), (x + w, y + h), (0, 255, 0), 2)
 
-                    segmentation[result == categorie] = CATEGORIES[categorie]["color"]
+                                x = x if x >= 0 else 0
+                                y = y if y >= 0 else 0
+                                w = w if w <= self.segmentation_model_size[0] else self.segmentation_model_size[0]
+                                h = h if h <= self.segmentation_model_size[1] else self.segmentation_model_size[1]
+
+                                cv2.rectangle(segmentation, (x, y), (x + w, y + h), (0, 255, 0), 1)
+
+                                if self.traffic_sign_recognition_model is not None:
+                                    test_sign = cv2.resize(img_resized[y:y + h, x:x + w], self.traffic_sign_recognition_model_size, interpolation=cv2.INTER_AREA)
+                                    test_sign = np.array([test_sign / 255.])
+                                    result_traffic = self.traffic_sign_recognition_model.predict(test_sign)[0]
+                                    max_index_col = np.argmax(result_traffic, axis=0)
+                                    proba = result_traffic[max_index_col]
+                                    if proba > 0.75:
+                                        print("[INFO] Traffic Sign Recognition : '" + TRAFFIC_SIGN_DATASET_VALUES[max_index_col] + " (" + str(TRAFFIC_SIGN_DATASET_KEYS[max_index_col]) + ") ' P=" + str(proba))
+
+                    segmentation[result_segmentation == categorie] = CATEGORIES[categorie]["color"]
+
+                if self.segmentation_model_size != (640, 480):
+                    img_resized = cv2.resize(img_resized, (640, 480), interpolation=cv2.INTER_AREA)
+                    segmentation = cv2.resize(segmentation, (640, 480), interpolation=cv2.INTER_AREA)
 
                 self.sendTo(self.EVT_ROAD_IMAGE, cv2.cvtColor(img_resized, cv2.COLOR_RGB2BGR))
                 self.sendTo(self.EVT_SEGMENTATION_IMAGE, segmentation)
 
+            self.cap.release()
+            self.isAvailable = True
+
+    def stop(self):
+        self.ThreadActive = False
+
 class Window(QMainWindow):
     def __init__(self):
         super().__init__()
-        # Title and dimensions
+
+        # Titre
         self.setWindowTitle("Road Segmentation")
-        # self.setGeometry(0, 0, 800, 500)
 
         # Thread in charge of updating the image
         self.thread = Thread(self)
@@ -122,15 +244,29 @@ class Window(QMainWindow):
         # MODEL CHOOSER LAYOUT
         self.model_chooser_layout = QGroupBox("Model chooser")
         self.model_chooser_layout.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
+
+        # Segmentation UI
+        segmentation_model_chooser_layout = QHBoxLayout()
+        self.segmentation_model_chooser_input = QLineEdit()
+        self.segmentation_model_chooser_button = QPushButton("...")
+
+        segmentation_model_chooser_layout.addWidget(QLabel("Segmentation :"), 10)
+        segmentation_model_chooser_layout.addWidget(self.segmentation_model_chooser_input, 50)
+        segmentation_model_chooser_layout.addWidget(self.segmentation_model_chooser_button)
+
+        # Traffic Sign Recognition UI
+        traffic_sign_model_chooser_layout = QHBoxLayout()
+        self.traffic_sign_model_chooser_input = QLineEdit()
+        self.traffic_sign_model_chooser_button = QPushButton("...")
+
+        traffic_sign_model_chooser_layout.addWidget(QLabel("Traffic Sign Recognition :"), 10)
+        traffic_sign_model_chooser_layout.addWidget(self.traffic_sign_model_chooser_input, 50)
+        traffic_sign_model_chooser_layout.addWidget(self.traffic_sign_model_chooser_button)
+
+        # Model UI def
         model_chooser_layout = QHBoxLayout()
-
-        self.model_chooser_dialog = QFileDialog()
-        self.model_chooser_input = QLineEdit()
-        self.model_chooser_button = QPushButton("...")
-
-        model_chooser_layout.addWidget(QLabel("Model :"), 10)
-        model_chooser_layout.addWidget(self.model_chooser_input, 50)
-        model_chooser_layout.addWidget(self.model_chooser_button)
+        model_chooser_layout.addLayout(segmentation_model_chooser_layout)
+        model_chooser_layout.addLayout(traffic_sign_model_chooser_layout)
         self.model_chooser_layout.setLayout(model_chooser_layout)
 
         # IMAGE RESULT
@@ -217,16 +353,16 @@ class Window(QMainWindow):
         self.stop_button.clicked.connect(self.stop)
         self.stop_button.setEnabled(False)
         self.combobox.currentTextChanged.connect(self.set_video)
-        self.model_chooser_input.returnPressed.connect(self.loadModel_Input)
-        self.model_chooser_button.clicked.connect(self.loadModel_Button)
+        self.segmentation_model_chooser_input.returnPressed.connect(self.segmentation_loadModel_Input)
+        self.segmentation_model_chooser_button.clicked.connect(self.segmentation_loadModel_Button)
+        self.traffic_sign_model_chooser_input.returnPressed.connect(self.traffic_sign_loadModel_Input)
+        self.traffic_sign_model_chooser_button.clicked.connect(self.traffic_sign_loadModel_Button)
 
     @Slot()
     def set_video(self, filename):
         cv2.destroyAllWindows()
-        self.thread.terminate()
-        self.thread.wait()
-        self.thread.set_file(filename)
-        self.thread.start()
+        self.thread.stop()
+        self.thread.start_file(filename)
         self.stop_button.setEnabled(True)
         self.start_button.setEnabled(False)
 
@@ -234,14 +370,12 @@ class Window(QMainWindow):
     def start(self):
         self.stop_button.setEnabled(True)
         self.start_button.setEnabled(False)
-        self.thread.set_file(self.combobox.currentText())
-        self.thread.start()
+        self.thread.start_file(self.combobox.currentText())
 
     @Slot()
     def stop(self):
         cv2.destroyAllWindows()
-        self.thread.terminate()
-        self.thread.wait()
+        self.thread.stop()
         self.stop_button.setEnabled(False)
         self.start_button.setEnabled(True)
 
@@ -253,24 +387,24 @@ class Window(QMainWindow):
     def setSegmentationImage(self, image):
         self.image_seg.setPixmap(QPixmap.fromImage(image))
 
-    def loadModel_Input(self):
-        fileName = self.model_chooser_input.text()
-        self.loadModel(fileName)
+    def segmentation_loadModel_Input(self):
+        fileName = self.segmentation_model_chooser_input.text()
+        self.thread.loadSegmentationModel(fileName)
 
-    def loadModel_Button(self):
+    def segmentation_loadModel_Button(self):
         fileName = QFileDialog.getOpenFileName(self, "Load model savepoint", "", "H5 file (*.h5)")
-        self.loadModel(fileName[0])
+        self.segmentation_model_chooser_input.setText(fileName[0])
+        self.thread.loadSegmentationModel(fileName[0])
 
-    def loadModel(self, filename):
-        global model
-        global MODEL_SIZE
+    def traffic_sign_loadModel_Input(self):
+        fileName = self.traffic_sign_model_chooser_input.text()
+        self.thread.loadTrafficSignRecognitionModel(fileName)
 
-        try:
-            model = keras.models.load_model(filename, custom_objects={'ArgmaxMeanIOU': ArgmaxMeanIOU})
-            MODEL_SIZE = model.get_layer(index=0).input_shape[0][1:-1][::-1]
-            self.model_chooser_input.setText(filename)
-        except:
-            print("Une erreur est survenue lors de l'ouverture du modele")
+    def traffic_sign_loadModel_Button(self):
+        fileName = QFileDialog.getOpenFileName(self, "Load model savepoint", "", "H5 file (*.h5)")
+        self.traffic_sign_model_chooser_input.setText(fileName[0])
+        self.thread.loadTrafficSignRecognitionModel(fileName[0])
+
 
 def except_hook(cls, exception, traceback):
     sys.__excepthook__(cls, exception, traceback)
