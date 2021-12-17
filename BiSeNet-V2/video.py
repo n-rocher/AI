@@ -36,10 +36,10 @@ CATEGORIES = {
 }
 
 TRAFFIC_SIGN_DATASET = {
-    1: "Virage à droite", 
-    100: "Sens unique (droit)", 
-    107: "Zone 30", 
-    108: "Fin zone 30", 
+    1: "Virage à droite",
+    100: "Sens unique (droit)",
+    107: "Zone 30",
+    108: "Fin zone 30",
     109: "Passage pour piétons",
     11: "Ralentisseur simple",
     12: "Ralentisseur double",
@@ -80,10 +80,10 @@ TRAFFIC_SIGN_DATASET = {
     67: "Vitesse maximale 110",
     68: "Vitesse maximale 120",
     7: "Rétrécissement de la chaussée",
-    80: "Direction - Droit",
+    80: "Direction - Tout droit",
     81: "Direction - Droite",
     82: "Direction - Gauche",
-    83: "Direction - Droite ou Droite",
+    83: "Direction - Tout droit ou à droite",
     84: "Direction - Tout droit ou à gauche",
     85: "Direction - Tourner à droite",
     86: "Direction - Tourner à gauche",
@@ -92,11 +92,48 @@ TRAFFIC_SIGN_DATASET = {
 
 TRAFFIC_SIGN_DATASET_VALUES = list(TRAFFIC_SIGN_DATASET.values())
 TRAFFIC_SIGN_DATASET_KEYS = list(TRAFFIC_SIGN_DATASET.keys())
+TRAFFIC_SIGN_DATASET_IMAGE_FOLDER = "J:/PROJET/IA/European Traffic Sign Dataset/data/logo/"
+TRAFFIC_SIGN_DATASET_IMAGE = list(map(lambda x: cv2.resize(cv2.imread(TRAFFIC_SIGN_DATASET_IMAGE_FOLDER + str(x) + ".png", cv2.IMREAD_UNCHANGED), (50, 50)), TRAFFIC_SIGN_DATASET_KEYS))
 
 IMG_SIZE = (720, 480)
 VIDEO_PATH = r"F:\Road Video"
 
 BOUNDING_BOX_PADDING = 5
+
+
+def copyTrafficSign(image, trafficSign, x, y):
+
+    assert x >= 0 and y >= 0, "x et y doivent etre supérieur à 0"
+
+    i_h, i_w, _ = image.shape
+    t_h, t_w, _ = trafficSign.shape
+
+    # Récupération logo
+    temp_w = i_w - x
+    t_w = t_w if temp_w >= t_w else t_w - temp_w
+
+    temp_h = i_h - y
+    t_h = t_h if temp_h >= t_h else t_h - temp_h
+
+    logo = trafficSign[0:t_h, 0:t_w, :3]
+    mask = trafficSign[0:t_h, 0:t_w, 3]
+
+    # Récupération image
+    sous_parties_image = image[y:y+t_h, x:x+t_w, :]
+
+    # DEBUG: print(sous_parties_image.shape, mask.shape)
+
+    # Ajout des masques
+
+    fg = cv2.bitwise_or(logo, logo, mask=mask)
+    bg = cv2.bitwise_or(sous_parties_image, sous_parties_image, mask=cv2.bitwise_not(mask))
+
+    # Assemblage final
+    final = cv2.bitwise_or(fg, bg)
+    image[y:y+t_h, x:x+t_w, :] = final
+
+    return image
+
 
 class Thread(QThread):
     EVT_ROAD_IMAGE = Signal(QImage)
@@ -170,7 +207,6 @@ class Thread(QThread):
             while(self.ThreadActive and self.cap.isOpened()):
                 self.isAvailable = False
 
-
                 ret, frame = self.cap.read()
                 if not ret:
                     continue
@@ -188,7 +224,6 @@ class Thread(QThread):
 
                     # En cas de détection de "Traffic Sign", on dessine une box autour
                     if categorie == 7:
-                        print("\n")
                         contours, _ = cv2.findContours(np.array(result_segmentation == categorie, dtype=np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
                         for cnt in contours:
                             x, y, w, h = cv2.boundingRect(cnt)
@@ -211,8 +246,11 @@ class Thread(QThread):
                                     result_traffic = self.traffic_sign_recognition_model.predict(test_sign)[0]
                                     max_index_col = np.argmax(result_traffic, axis=0)
                                     proba = result_traffic[max_index_col]
-                                    if proba > 0.75:
-                                        print("[INFO] Traffic Sign Recognition : '" + TRAFFIC_SIGN_DATASET_VALUES[max_index_col] + " (" + str(TRAFFIC_SIGN_DATASET_KEYS[max_index_col]) + ") ' P=" + str(proba))
+                                    if proba > 0.85:
+                                        try:
+                                            img_resized = copyTrafficSign(img_resized, TRAFFIC_SIGN_DATASET_IMAGE[max_index_col], x, y)
+                                        except Exception as err:
+                                            print(err)
 
                     segmentation[result_segmentation == categorie] = CATEGORIES[categorie]["color"]
 
