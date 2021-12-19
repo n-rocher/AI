@@ -31,26 +31,26 @@ FOLDER = r"F:\European Traffic Sign Dataset\PNG-"
 def TrafficSignClassifier(img_size, classes):
     x_in = layers.Input(img_size + (3,))
     x = layers.Conv2D(8, (3, 3), activation="relu")(x_in)
-    x = layers.Conv2D(8, (3, 3), activation="relu")(x)
+    # x = layers.Conv2D(8, (3, 3), activation="relu")(x)
     x = layers.MaxPooling2D(pool_size=(2, 2))(x)
 
     x = layers.Conv2D(16, (3, 3), activation="relu")(x)
-    x = layers.Conv2D(16, (3, 3), activation="relu")(x)
+    # x = layers.Conv2D(16, (3, 3), activation="relu")(x)
     x = layers.MaxPooling2D(pool_size=(2, 2))(x)
 
     x = layers.Conv2D(32, (3, 3), padding="same", activation="relu")(x)
-    x = layers.Conv2D(32, (3, 3), padding="same", activation="relu")(x)
+    # x = layers.Conv2D(32, (3, 3), padding="same", activation="relu")(x)
     x = layers.BatchNormalization()(x)
     x = layers.MaxPooling2D(pool_size=(2, 2))(x)
 
     x = layers.Conv2D(64, (3, 3), padding="same", activation="relu")(x)
-    x = layers.Conv2D(64, (3, 3), padding="same", activation="relu")(x)
+    # x = layers.Conv2D(64, (3, 3), padding="same", activation="relu")(x)
 
     x = layers.Flatten()(x)
-    x = layers.BatchNormalization()(x)
+    # x = layers.BatchNormalization()(x)
 
     x = layers.Dense(256, activation="relu")(x)
-    x = layers.Dense(256, activation="relu")(x)
+    # x = layers.Dense(256, activation="relu")(x)
     x = layers.Dense(classes, activation="softmax")(x)
 
     model = models.Model(inputs=[x_in], outputs=[x], name="TrafficSignClassifier")
@@ -64,6 +64,8 @@ def TrafficSignClassifier(img_size, classes):
 def load_data(folder, class_ids):
     data_image = []
     data_label = []
+
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
 
     print("[INFO] " + str(len(class_ids)) + " classes à charger dans le dossier " + FOLDER + folder)
 
@@ -87,10 +89,23 @@ def load_data(folder, class_ids):
 
                 try:
                     # On charge l'image
-                    image = cv2.imread(image_path) / 255.
-                    
+                    image = cv2.resize(cv2.imread(image_path), IMG_SIZE)
+
+                    if image is None : 
+                        print("NONENONENONENONENONENONENONENONENONENONENONENONENONENONENONENONENONENONENONENONENONENONENONENONE")
+                        continue
+
+                    image_equalized = np.zeros_like(image)
+
+                    # Adaptative Treshold
+                    for i in range(3):
+                        image_equalized[:,:,i] = clahe.apply(image[:,:,i])
+                                        
                     # On ajoute dans la mémoire
-                    data_image.append(image)
+                    data_image.append(image / 255.)
+                    data_image.append(image_equalized / 255.)
+
+                    data_label.append(index)  # ON UTILISE L'INDEX POUR LE ONE-HOT ENCODER
                     data_label.append(index)  # ON UTILISE L'INDEX POUR LE ONE-HOT ENCODER
 
                     compteur_image_ajoutee += 1
@@ -98,7 +113,8 @@ def load_data(folder, class_ids):
                 except KeyboardInterrupt:
                     print("[SHUTING DOWN] Fin du programme...")
                     exit()
-                except:
+                except Exception as err:
+                    print(err)
                     print("[ERROR] Impossible d'ouvrir l'image suivante : " + image_path)
 
             print("[INFO] Classe " + str(class_id) + " chargée (" + str(compteur_image_ajoutee) + " images)")
