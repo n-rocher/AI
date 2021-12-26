@@ -1,16 +1,19 @@
 import os
 import sys
+import cv2
+import wandb
 
 import tensorflow as tf
 from tensorflow.keras import layers
+from wandb.keras import WandbCallback
 
-import pandas as pd
 import numpy as np
-import cv2
+import pandas as pd
+from datetime import datetime
 import matplotlib.pyplot as plt
 
+from model import DepthEstimationModel
 from datagenerator import DataGenerator 
-from model import DepthEstimationModel 
 
 
 if __name__ == "__main__":
@@ -52,6 +55,15 @@ if __name__ == "__main__":
     EPOCHS = 30
     BATCH_SIZE = 32
 
+    # Weights & Biases
+    now_str = datetime.now().strftime("%Y%m%d-%H%M%S")
+    run = wandb.init(project="3D-DEPTH", entity="nrocher", config={
+        "learning_rate": LR,
+        "epochs": EPOCHS,
+        "batch_size": BATCH_SIZE,
+        "image_size": (HEIGHT, WIDTH),
+    })
+
     def visualize_depth_map(samples, test=False, model=None):
         input, target = samples
         # cmap = plt.cm.jet
@@ -72,6 +84,8 @@ if __name__ == "__main__":
                 ax[i, 1].imshow((target[i].squeeze())) #, cmap=cmap)
 
         plt.show()
+
+
 
 
     # visualize_samples = next(
@@ -116,8 +130,23 @@ if __name__ == "__main__":
     train_loader = DataGenerator(data=df.reset_index(drop="true"), batch_size=BATCH_SIZE, dim=(HEIGHT, WIDTH))
     validation_loader = DataGenerator(data=df[:250].reset_index(drop="true"), batch_size=BATCH_SIZE, dim=(HEIGHT, WIDTH))
    
+    callbacks = [
+        tf.keras.callbacks.ModelCheckpoint("models/" + now_str + "/" + model.name + "_" + str(HEIGHT) + "-" + str(WIDTH) + "_epoch-{epoch:02d}_val-loss-{val_loss:.2f}.h5"),
+        tf.keras.callbacks.TensorBoard(log_dir="models/" + now_str + "/logs/", histogram_freq=1),
+        WandbCallback()
+    ]
+
+    # Entrainement
+    print("\n> Entrainement")
+
     model.fit(
         train_loader,
         epochs=EPOCHS,
         validation_data=validation_loader,
+        use_multiprocessing=True,
+        workers=6,
+        callbacks=callbacks
     )
+
+    # Weights & Biases - END
+    run.finish()
