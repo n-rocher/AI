@@ -120,17 +120,10 @@ class DepthEstimationModel(tf.keras.Model):
         smoothness_x = dx_pred * weights_x
         smoothness_y = dy_pred * weights_y
 
-        depth_smoothness_loss = tf.reduce_mean(abs(smoothness_x)) + tf.reduce_mean(
-            abs(smoothness_y)
-        )
+        depth_smoothness_loss = tf.reduce_mean(abs(smoothness_x)) + tf.reduce_mean(abs(smoothness_y))
 
         # Structural similarity (SSIM) index
-        ssim_loss = tf.reduce_mean(
-            1
-            - tf.image.ssim(
-                target, pred, max_val=self.width, filter_size=7, k1=0.01 ** 2, k2=0.03 ** 2
-            )
-        )
+        ssim_loss = tf.reduce_mean(1 - tf.image.ssim(target, pred, max_val=self.width, filter_size=7, k1=0.01 ** 2, k2=0.03 ** 2))
         # Point-wise depth
         l1_loss = tf.reduce_mean(tf.abs(target - pred))
 

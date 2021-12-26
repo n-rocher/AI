@@ -15,24 +15,24 @@ from PySide6.QtWidgets import (QApplication, QFileDialog, QComboBox, QFrame, QGr
 
 
 CATEGORIES = {
-    1: {"name": "Road", "color": [128, 64, 128]},
+    1: {"name": "Road", "color": [75, 75, 75]},
     2: {"name": "Lane", "color": [255, 255, 255]},
     3: {"name": "Crosswalk", "color": [200, 128, 128]},
-    4: {"name": "Curb", "color": [196, 196, 196]},
+    4: {"name": "Curb", "color": [150, 150, 150]},
     5: {"name": "Sidewalk", "color": [244, 35, 232]},
 
     6: {"name": "Traffic Light", "color": [250, 170, 30]},
-    7: {"name": "Traffic Sign", "color": [220, 220, 0]},
+    7: {"name": "Traffic Sign", "color": [255, 255, 0]},
 
-    8: {"name": "Person", "color": [220, 20, 60]},
-    9: {"name": "Bicyclist", "color": [255, 0, 0]},
-    10: {"name": "Motorcyclist", "color": [255, 0, 100]},
+    8: {"name": "Person", "color": [255, 0, 0]},
+    9: {"name": "Bicyclist", "color": [150, 150, 100]},
+    10: {"name": "Motorcyclist", "color": [20, 50, 100]},
 
     11: {"name": "Bicycle", "color": [119, 11, 32]},
-    12: {"name": "Bus", "color": [0, 60, 100]},
-    13: {"name": "Car", "color": [0, 0, 142]},
+    12: {"name": "Bus", "color": [255, 15, 147]},
+    13: {"name": "Car", "color": [0, 255, 142]},
     14: {"name": "Motorcycle", "color": [0, 0, 230]},
-    15: {"name": "Truck", "color": [0, 0, 70]}
+    15: {"name": "Truck", "color": [75, 10, 170]}
 }
 
 TRAFFIC_SIGN_DATASET = {
@@ -92,11 +92,11 @@ TRAFFIC_SIGN_DATASET = {
 
 TRAFFIC_SIGN_DATASET_VALUES = list(TRAFFIC_SIGN_DATASET.values())
 TRAFFIC_SIGN_DATASET_KEYS = list(TRAFFIC_SIGN_DATASET.keys())
-TRAFFIC_SIGN_DATASET_IMAGE_FOLDER = "J:/PROJET/IA/European Traffic Sign Dataset/data/logo/"
+TRAFFIC_SIGN_DATASET_IMAGE_FOLDER = "C:/Users/thena/Desktop/AI/European Traffic Sign Dataset/data/logo/"
 TRAFFIC_SIGN_DATASET_IMAGE = list(map(lambda x: cv2.resize(cv2.imread(TRAFFIC_SIGN_DATASET_IMAGE_FOLDER + str(x) + ".png", cv2.IMREAD_UNCHANGED), (50, 50)), TRAFFIC_SIGN_DATASET_KEYS))
 
 IMG_SIZE = (720, 480)
-VIDEO_PATH = r"F:\Road Video"
+VIDEO_PATH = r"C:\Users\thena\Desktop\VIDEO"
 
 BOUNDING_BOX_PADDING = 5
 
