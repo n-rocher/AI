@@ -6,6 +6,7 @@ wandb/
 *.npy
 *.h5
 
+RoadSegmentation/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
