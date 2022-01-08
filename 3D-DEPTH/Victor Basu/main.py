@@ -49,11 +49,11 @@ if __name__ == "__main__":
 
     df = df.sample(frac=1, random_state=42)
 
-    HEIGHT = 256
-    WIDTH = 256
+    HEIGHT = 256//2
+    WIDTH = 256//2
     LR = 0.0002
     EPOCHS = 30
-    BATCH_SIZE = 32
+    BATCH_SIZE = 2
 
     # Weights & Biases
     now_str = datetime.now().strftime("%Y%m%d-%H%M%S")
